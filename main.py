@@ -12,17 +12,32 @@ def main() -> None:
     root = tk.Tk()
     root.title("ASCII Interstellar Black Hole")
 
-    canvas = tk.Text(root, width=config.WINDOW_WIDTH, height=config.WINDOW_HEIGHT)
+    width, height = config.get_window_size()
+    if config.USE_FULLSCREEN:
+        root.attributes("-fullscreen", True)
+    else:
+        root.geometry(f"{width}x{height}")
+    canvas = tk.Text(root, width=width, height=height, bg="black")
+    canvas.configure(font=("Courier", 10))
     canvas.pack()
 
     renderer = ASCIIRenderer()
-    physics = BlackHoleSimulator(config.WINDOW_WIDTH, config.WINDOW_HEIGHT)
+    physics = BlackHoleSimulator(width, height)
 
     def update_frame() -> Optional[str]:
         brightness = physics.compute_frame()
-        frame = renderer.render(brightness)
+        frame, colors = renderer.render_colored(brightness)
+        canvas.config(state=tk.NORMAL)
         canvas.delete("1.0", tk.END)
-        canvas.insert(tk.END, frame)
+        for y, line in enumerate(frame.splitlines()):
+            for x, ch in enumerate(line):
+                color = colors[y][x]
+                tag = color
+                if not tag in canvas.tag_names():
+                    canvas.tag_config(tag, foreground=color)
+                canvas.insert(tk.END, ch, tag)
+            canvas.insert(tk.END, "\n")
+        canvas.config(state=tk.DISABLED)
         root.after(int(1000 / config.FPS), update_frame)
 
     update_frame()
