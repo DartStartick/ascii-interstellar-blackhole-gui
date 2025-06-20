@@ -1,5 +1,6 @@
 """Entry point for the ASCII black hole GUI."""
 
+import importlib
 import tkinter as tk
 from typing import Optional
 
@@ -13,16 +14,55 @@ def main() -> None:
     root.title("ASCII Interstellar Black Hole")
 
     width, height = config.get_window_size()
-    if config.USE_FULLSCREEN:
-        root.attributes("-fullscreen", True)
-    else:
-        root.geometry(f"{width}x{height}")
+
     canvas = tk.Text(root, width=width, height=height, bg="black")
     canvas.configure(font=("Courier", 10))
     canvas.pack()
 
     renderer = ASCIIRenderer()
+    palette_names = list(renderer.palettes.keys())
+    palette_index = 0
+
     physics = BlackHoleSimulator(width, height)
+
+    def apply_window_size() -> None:
+        nonlocal width, height, physics
+        width, height = config.get_window_size()
+        if config.USE_FULLSCREEN:
+            root.attributes("-fullscreen", True)
+        else:
+            root.attributes("-fullscreen", False)
+            root.geometry(f"{width}x{height}")
+        canvas.config(width=width, height=height)
+        physics = BlackHoleSimulator(width, height)
+
+    apply_window_size()
+
+    def toggle_fullscreen(event: Optional[tk.Event] = None) -> None:
+        config.USE_FULLSCREEN = not config.USE_FULLSCREEN
+        apply_window_size()
+
+    def toggle_mode(event: Optional[tk.Event] = None) -> None:
+        renderer.mode = "mono" if renderer.mode == "color" else "color"
+
+    def cycle_palette(event: Optional[tk.Event] = None) -> None:
+        nonlocal palette_index
+        palette_index = (palette_index + 1) % len(palette_names)
+        renderer.set_palette(palette_names[palette_index])
+
+    def reload_settings(event: Optional[tk.Event] = None) -> None:
+        nonlocal renderer, palette_names, palette_index
+        importlib.reload(config)
+        renderer = ASCIIRenderer()
+        palette_names = list(renderer.palettes.keys())
+        palette_index = 0
+        apply_window_size()
+
+    root.bind("f", toggle_fullscreen)
+    root.bind("m", toggle_mode)
+    root.bind("p", cycle_palette)
+    root.bind("r", reload_settings)
+    root.bind("<Escape>", lambda e: root.destroy())
 
     def update_frame() -> Optional[str]:
         brightness = physics.compute_frame()
