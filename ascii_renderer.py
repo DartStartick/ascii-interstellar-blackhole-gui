@@ -7,6 +7,7 @@ for display in the GUI window.
 from typing import Dict, List, Tuple, Union
 
 import config
+from utils import clamp
 
 # Built-in palettes that can be selected by name.  Additional palettes
 # can be registered at runtime via :func:`register_palette`.
@@ -84,7 +85,7 @@ class ASCIIRenderer:
 
     def _map_value(self, value: float) -> str:
         """Map a brightness value 0..1 to a character."""
-        index = int(max(0.0, min(1.0, value)) * self.levels)
+        index = int(clamp(value, 0.0, 1.0) * self.levels)
         return self.charset[index]
 
     def _map_color(self, value: float) -> str:
@@ -92,5 +93,5 @@ class ASCIIRenderer:
         if self.mode == "mono":
             return self.colors[0]
 
-        index = int(max(0.0, min(1.0, value)) * self.color_levels)
+        index = int(clamp(value, 0.0, 1.0) * self.color_levels)
         return self.colors[index]

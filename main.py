@@ -10,7 +10,11 @@ import config
 
 
 def main() -> None:
-    root = tk.Tk()
+    try:
+        root = tk.Tk()
+    except tk.TclError as exc:
+        print("Error initialising Tkinter:", exc)
+        return
     root.title("ASCII Interstellar Black Hole")
 
     width, height = config.get_window_size()
@@ -22,6 +26,16 @@ def main() -> None:
     renderer = ASCIIRenderer()
     palette_names = list(renderer.palettes.keys())
     palette_index = 0
+    color_tags: dict[str, str] = {}
+
+    def setup_color_tags() -> None:
+        color_tags.clear()
+        for colour in renderer.colors:
+            if colour not in canvas.tag_names():
+                canvas.tag_config(colour, foreground=colour)
+            color_tags[colour] = colour
+
+    setup_color_tags()
 
     physics = BlackHoleSimulator(width, height)
 
@@ -49,6 +63,7 @@ def main() -> None:
         nonlocal palette_index
         palette_index = (palette_index + 1) % len(palette_names)
         renderer.set_palette(palette_names[palette_index])
+        setup_color_tags()
 
     def reload_settings(event: Optional[tk.Event] = None) -> None:
         nonlocal renderer, palette_names, palette_index
@@ -57,6 +72,7 @@ def main() -> None:
         palette_names = list(renderer.palettes.keys())
         palette_index = 0
         apply_window_size()
+        setup_color_tags()
 
     root.bind("f", toggle_fullscreen)
     root.bind("m", toggle_mode)
@@ -72,13 +88,16 @@ def main() -> None:
         for y, line in enumerate(frame.splitlines()):
             for x, ch in enumerate(line):
                 color = colors[y][x]
-                tag = color
-                if not tag in canvas.tag_names():
-                    canvas.tag_config(tag, foreground=color)
+                tag = color_tags.get(color)
+                if tag is None:
+                    canvas.tag_config(color, foreground=color)
+                    color_tags[color] = color
+                    tag = color
                 canvas.insert(tk.END, ch, tag)
             canvas.insert(tk.END, "\n")
         canvas.config(state=tk.DISABLED)
-        root.after(int(1000 / config.FPS), update_frame)
+        if root.winfo_exists():
+            root.after(int(1000 / config.FPS), update_frame)
 
     update_frame()
     root.mainloop()

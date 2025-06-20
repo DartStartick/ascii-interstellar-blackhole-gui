@@ -22,11 +22,9 @@ def _normalize(v: List[float]) -> List[float]:
     return [c / length for c in v]
 
 
-def _rotate_x(v: List[float], angle: float) -> List[float]:
-    """Rotate ``v`` around the X axis by ``angle`` radians."""
+def _rotate_x_cs(v: List[float], cos_a: float, sin_a: float) -> List[float]:
+    """Rotate ``v`` around the X axis using precomputed cosine and sine."""
     x, y, z = v
-    cos_a = math.cos(angle)
-    sin_a = math.sin(angle)
     return [x, y * cos_a - z * sin_a, y * sin_a + z * cos_a]
 
 class BlackHoleSimulator:
@@ -40,6 +38,8 @@ class BlackHoleSimulator:
         # consistent so the simulation looks plausible.
         self.camera_distance = 8.0
         self.camera_pitch = config.CAMERA_PITCH
+        self.pitch_cos = math.cos(self.camera_pitch)
+        self.pitch_sin = math.sin(self.camera_pitch)
         self.bh_radius = 1.0
         self.mass = 1.0  # Controls lensing strength
 
@@ -62,13 +62,15 @@ class BlackHoleSimulator:
         cx = self.width / 2.0
         cy = self.height / 2.0
 
+        origin = _rotate_x_cs([0.0, 0.0, self.camera_distance], self.pitch_cos, self.pitch_sin)
+
         frame: List[List[float]] = []
         for iy in range(self.height):
             row: List[float] = []
             dy = (iy - cy) * scale
             for ix in range(self.width):
                 dx = (ix - cx) * scale
-                b = self._trace_pixel(dx, dy)
+                b = self._trace_pixel(dx, dy, origin)
                 row.append(b)
             frame.append(row)
 
@@ -79,12 +81,11 @@ class BlackHoleSimulator:
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _trace_pixel(self, x: float, y: float) -> float:
+    def _trace_pixel(self, x: float, y: float, origin: List[float]) -> float:
         """Trace a single pixel and return its brightness."""
         # Ray origin and direction in camera space
-        origin = _rotate_x([0.0, 0.0, self.camera_distance], self.camera_pitch)
         direction = _normalize([x, y, -self.camera_distance])
-        direction = _rotate_x(direction, self.camera_pitch)
+        direction = _rotate_x_cs(direction, self.pitch_cos, self.pitch_sin)
 
         pos = origin[:]
         dir_vec = direction[:]
